@@ -101,5 +101,5 @@ int main(int argc, char *argv[]) {
       errExit("close");
   }
 
-  return 0;
+  return EXIT_SUCCESS;
 }
