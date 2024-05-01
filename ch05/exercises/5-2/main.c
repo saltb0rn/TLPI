@@ -4,7 +4,7 @@
 
 /* Quote from the docs about write(2):
 
-  `If the file was open(2)ed with O_APPEND, the file offset is  first  set  to
+  `If the file was open(2)ed with O_APPEND, the file offset is  first  set to
   the  end  of the file before writing.  The adjustment of the file offset
   and the write operation are performed as an atomic step.`
 
