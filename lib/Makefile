@@ -5,7 +5,7 @@ OBJS := $(SRCS:.c=.o)
 
 ALL: $(OBJS)
 $(OBJS): %.o: %.c
-	mkdir -p $(BUILD_DIR)
+	$(shell ! test -d $(BUILD_DIR) && mkdir $(BUILD_DIR))
 	gcc -c -o $(BUILD_DIR)/$@ $^
 
 .PHONY: clean
