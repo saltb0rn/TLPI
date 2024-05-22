@@ -11,7 +11,7 @@
 #  define MAX_FREE_BLK (128 * 1024)
 #endif
 
-#define MAX_DEBUG_STR 1024
+#define MAX_DEBUG_STR (1024)
 #define HEADER_SIZE   (sizeof(size_t))
 #define POINTER_SIZE  (sizeof(void *))
 
@@ -58,8 +58,8 @@ read_size(void *base_ptr) {
  * to `malloc`, and must be recovered here*/
 static void *
 get_base_address(void *ptr) {
-  size_t *sizep = ptr;
-  return (sizep - 1);
+  char *sizep = ptr;
+  return (sizep - HEADER_SIZE);
 }
 
 static void
@@ -157,7 +157,7 @@ slice(void *base_ptr, size_t size) {
 
   write_size(base_ptr, size);
   write_size(p, original_size - size - HEADER_SIZE);
-  set_previous_free_block(p, next_ptr);
+  set_previous_free_block(p, previous_ptr);
   set_next_free_block(p, next_ptr);
 
   return (base + HEADER_SIZE);
@@ -218,7 +218,7 @@ check_footprint() {
 }
 
 void*
-malloc(size_t size) {
+_malloc(size_t size) {
   char *prev_breakp;
 
   /* SUSv3 allows an implementation to return either NULL or a small
@@ -279,7 +279,7 @@ malloc(size_t size) {
 }
 
 void
-free(void *ptr) {
+_free(void *ptr) {
   /* SUSv3 allows the pointer given to `free` to NULL, in which case
    * nothing should be done */
   if (!ptr)
@@ -356,7 +356,11 @@ free(void *ptr) {
         set_next_free_block(prev, base_address);
         set_previous_free_block(base_address, prev);
         set_next_free_block(base_address, get_next_free_block(curr));
-        set_previous_free_block(get_next_free_block(curr), base_address);
+
+        /* next free block of curr may be NULL, that is curr may be the last free block */
+        if (get_next_free_block(curr)) {
+          set_previous_free_block(get_next_free_block(curr), base_address);
+        }
 
         check_footprint();
       } else {
@@ -403,10 +407,50 @@ free(void *ptr) {
   }
 }
 
+#include "tlpi_hdr.h"
+#define MAX_ALLOCS 1000000
+
+void simple_free_test() {
+        /* do some mallocs, free it all, do the mallocs again (sbrk should not move) */
+        int i, j, len;
+        char * bufs[100];
+        void * cur_brk;
+        for (i = 0; i < 100; i++) {
+                len = 100 + i;
+                bufs[i] = _malloc(len);
+                for (j = 0; j < len - 1; j++) {
+                        bufs[i][j] = '0' + (i % 10);
+                }
+                bufs[i][len - 1] = '\0';
+        }
+        for (i = 0; i < 100; i++) {
+                printf("%02d [0x%08lX]: %s\n", i, (unsigned long)bufs[i], (char *)bufs[i]);
+        }
+        cur_brk = sbrk(0);
+        for (i = 0; i < 100; i++) {
+                _free(bufs[i]);
+        }
+        for (i = 0; i < 100; i++) {
+                len = 100 + i;
+                bufs[i] = _malloc(len);
+                for (j = 0; j < len - 1; j++) {
+                        bufs[i][j] = '0' + (i % 10);
+                }
+                bufs[i][len - 1] = '\0';
+        }
+        printf("== sbrk(0): bfr 0x%08lX, after 0x%08lX ==\n",
+                        (unsigned long)cur_brk,
+                        (unsigned long)sbrk(0));
+        for (i = 0; i < 100; i++) {
+                printf("%02d [0x%08lX]: %s\n", i, (unsigned long)bufs[i], (char *)bufs[i]);
+        }
+
+}
 
 int
 main(int argc, char* argv[]) {
-  /* Write test cases here */
-  /* NOTE: Not test yet */
+  /* test case here */
+  simple_free_test();
+
   return 0;
 }
